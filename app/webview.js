@@ -12,7 +12,7 @@ import {
 import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const APP_URL = 'https://ledger1x.web.app';
+const APP_URL = 'https://czone-credit.web.app';
 
 export default function WebViewScreen() {
   const webViewRef = useRef(null);

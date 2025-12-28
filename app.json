@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "CZONE",
-    "slug": "LedgerAppExpo",
+    "slug": "czone",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -9,18 +9,20 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.prakratigtn.czone",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+         "foregroundImage": "./assets/images/icon.png",
+          "backgroundColor": "#E6F4FE"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.aerospace141.LedgerAppExpo"
+      "package": "com.prakratigtn.czone"
     },
     "web": {
       "output": "static",
@@ -46,8 +48,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "f8eb9fbc-a698-461c-a077-2807073b011c"
+        "projectId": "2bf060e8-868f-4a3b-9144-83ea3bbb1248"
       }
-    }
+    },
+    "owner": "czoneexpos-organization"
   }
 }
