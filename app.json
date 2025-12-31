@@ -2,7 +2,7 @@
   "expo": {
     "name": "CZONE",
     "slug": "czone",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "ledgerappexpo",
@@ -17,8 +17,8 @@
     },
     "android": {
       "adaptiveIcon": {
-         "foregroundImage": "./assets/images/icon.png",
-          "backgroundColor": "#E6F4FE"
+        "foregroundImage": "./assets/images/f-logo.png",
+        "backgroundColor": "#0A2540"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -51,6 +51,12 @@
         "projectId": "2bf060e8-868f-4a3b-9144-83ea3bbb1248"
       }
     },
-    "owner": "czoneexpos-organization"
+    "owner": "czoneexpos-organization",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2bf060e8-868f-4a3b-9144-83ea3bbb1248"
+    }
   }
 }
