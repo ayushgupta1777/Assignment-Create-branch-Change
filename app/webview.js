@@ -1,4 +1,4 @@
-// app/webview.js - Stable version without reload loops
+// app/webview.js - With Contact Picker Bridge
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -8,9 +8,11 @@ import {
   BackHandler,
   StatusBar,
   Alert,
+  PermissionsAndroid,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Contacts from 'react-native-contacts';
 
 const APP_URL = 'https://czone-credit.web.app';
 
@@ -35,6 +37,93 @@ export default function WebViewScreen() {
       return () => backHandler.remove();
     }
   }, [canGoBack]);
+
+  // Request contacts permission (Android)
+  const requestContactsPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
+          {
+            title: 'Contacts Permission',
+            message: 'This app needs access to your contacts to add customers.',
+            buttonPositive: 'Allow',
+            buttonNegative: 'Deny',
+          }
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.error('[Native] Permission error:', err);
+        return false;
+      }
+    }
+    return true; // iOS handles permissions differently
+  };
+
+  // Open contact picker
+  const openContactPicker = async () => {
+    try {
+      // Request permission first
+      const hasPermission = await requestContactsPermission();
+      
+      if (!hasPermission) {
+        // Send permission denied message back to WebView
+        webViewRef.current?.postMessage(JSON.stringify({
+          type: 'contact-picker-result',
+          success: false,
+          error: 'Permission denied',
+          message: 'Please grant contacts permission in app settings.'
+        }));
+        return;
+      }
+
+      // Open contact picker
+      Contacts.openContactPicker((err, contact) => {
+        if (err) {
+          console.error('[Native] Contact picker error:', err);
+          webViewRef.current?.postMessage(JSON.stringify({
+            type: 'contact-picker-result',
+            success: false,
+            error: err.message || 'Failed to pick contact',
+            message: 'Could not access contacts. Please try adding manually.'
+          }));
+          return;
+        }
+
+        // Extract contact information
+        const firstName = contact.givenName || '';
+        const lastName = contact.familyName || '';
+        const fullName = `${firstName} ${lastName}`.trim() || contact.displayName || 'Unknown';
+        
+        // Get phone number
+        const phoneNumber = contact.phoneNumbers && contact.phoneNumbers.length > 0
+          ? contact.phoneNumbers[0].number.replace(/[^0-9+]/g, '')
+          : '';
+
+        console.log('[Native] ✅ Contact selected:', fullName, phoneNumber);
+
+        // Send contact data back to WebView
+        webViewRef.current?.postMessage(JSON.stringify({
+          type: 'contact-picker-result',
+          success: true,
+          contact: {
+            name: fullName,
+            firstName: firstName,
+            lastName: lastName,
+            phone: phoneNumber
+          }
+        }));
+      });
+    } catch (error) {
+      console.error('[Native] ❌ Contact picker failed:', error);
+      webViewRef.current?.postMessage(JSON.stringify({
+        type: 'contact-picker-result',
+        success: false,
+        error: error.message,
+        message: 'Could not access contacts. Please try adding manually.'
+      }));
+    }
+  };
 
   // FIXED: Run only once per page load
   const injectedJavaScript = `
@@ -90,6 +179,33 @@ export default function WebViewScreen() {
         \`;
         document.head.appendChild(style);
       }
+
+      // ========== CONTACT PICKER BRIDGE ==========
+      // Override navigator.contacts for WebView
+      if (!window.navigator.contacts) {
+        window.navigator.contacts = {};
+      }
+      
+      window.navigator.contacts.select = async function(properties, options) {
+        return new Promise((resolve, reject) => {
+          console.log('[Mobile] 📞 Contact picker requested');
+          
+          // Store promise callbacks globally
+          window.__contactPickerResolve = resolve;
+          window.__contactPickerReject = reject;
+          
+          // Request contact picker from native
+          try {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+              type: 'open-contact-picker'
+            }));
+          } catch (e) {
+            console.error('[Mobile] Failed to request contact picker:', e);
+            reject(new Error('Contact picker not available'));
+          }
+        });
+      };
+      // ==========================================
 
       // Intercept fetch API
       const originalFetch = window.fetch;
@@ -190,6 +306,7 @@ export default function WebViewScreen() {
       }
 
       console.log('[Mobile] Initialized ✓');
+      console.log('[Mobile] 📞 Contact picker bridge ready');
     })();
     true;
   `;
@@ -200,6 +317,11 @@ export default function WebViewScreen() {
       const data = JSON.parse(event.nativeEvent.data);
       
       switch(data.type) {
+        case 'open-contact-picker':
+          console.log('[Native] 📞 Opening contact picker...');
+          openContactPicker();
+          break;
+
         case 'api-call':
           console.log('[Native] 🔵 API Call:', data.method, data.url);
           console.log('[Native]    Auth:', data.hasAuth ? '✓ Present' : '✗ Missing');
@@ -259,6 +381,11 @@ export default function WebViewScreen() {
       // Ignore parse errors
     }
   };
+
+  // Handle messages FROM native TO WebView (postMessage)
+  useEffect(() => {
+    // This is handled by the webViewRef.current?.postMessage() calls above
+  }, []);
 
   const onError = (syntheticEvent) => {
     const { nativeEvent } = syntheticEvent;
