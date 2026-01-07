@@ -1,4 +1,4 @@
-// app/webview.js - With Contact Picker Bridge
+// app/webview.js - With Fixed Permission Handling
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -9,6 +9,7 @@ import {
   StatusBar,
   Alert,
   PermissionsAndroid,
+  Linking,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -38,54 +39,133 @@ export default function WebViewScreen() {
     }
   }, [canGoBack]);
 
-  // Request contacts permission (Android)
+  // Request contacts permission (Android) - IMPROVED VERSION
   const requestContactsPermission = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
-          {
-            title: 'Contacts Permission',
-            message: 'This app needs access to your contacts to add customers.',
-            buttonPositive: 'Allow',
-            buttonNegative: 'Deny',
-          }
+    if (Platform.OS !== 'android') {
+      return true; // iOS handles permissions differently
+    }
+
+    try {
+      // Check if permission is already granted
+      const checkResult = await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.READ_CONTACTS
+      );
+
+      if (checkResult) {
+        console.log('[Native] ✅ Contacts permission already granted');
+        return true;
+      }
+
+      // Request permission
+      console.log('[Native] 📱 Requesting contacts permission...');
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
+        {
+          title: 'Contacts Permission',
+          message: 'This app needs access to your contacts to add customers.',
+          buttonPositive: 'Allow',
+          buttonNegative: 'Deny',
+        }
+      );
+
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        console.log('[Native] ✅ Contacts permission granted');
+        return true;
+      } else if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+        console.log('[Native] ⚠️ Permission permanently denied');
+        
+        // Show alert to open settings
+        Alert.alert(
+          'Permission Required',
+          'Contacts permission is required to select contacts. Please enable it in app settings.',
+          [
+            {
+              text: 'Open Settings',
+              onPress: () => {
+                Linking.openSettings();
+              }
+            },
+            {
+              text: 'Cancel',
+              style: 'cancel'
+            }
+          ]
         );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        console.error('[Native] Permission error:', err);
+        return false;
+      } else {
+        console.log('[Native] ❌ Contacts permission denied');
         return false;
       }
+    } catch (err) {
+      console.error('[Native] Permission error:', err);
+      Alert.alert(
+        'Error',
+        'Failed to request contacts permission. Please try again.'
+      );
+      return false;
     }
-    return true; // iOS handles permissions differently
   };
 
-  // Open contact picker
+  // Open contact picker - IMPROVED VERSION
   const openContactPicker = async () => {
     try {
+      console.log('[Native] 📞 Opening contact picker...');
+      
       // Request permission first
       const hasPermission = await requestContactsPermission();
       
       if (!hasPermission) {
-        // Send permission denied message back to WebView
+        console.log('[Native] ❌ No permission, sending error to web');
         webViewRef.current?.postMessage(JSON.stringify({
           type: 'contact-picker-result',
           success: false,
           error: 'Permission denied',
-          message: 'Please grant contacts permission in app settings.'
+          message: 'Please grant contacts permission in app settings to use this feature.'
         }));
         return;
       }
 
+      console.log('[Native] ✅ Permission granted, opening picker...');
+
       // Open contact picker
       Contacts.openContactPicker((err, contact) => {
         if (err) {
-          console.error('[Native] Contact picker error:', err);
+          console.error('[Native] ❌ Contact picker error:', err);
+          
+          // Check if it's a permission error
+          if (err.message && err.message.includes('permission')) {
+            Alert.alert(
+              'Permission Required',
+              'Please enable contacts permission in your phone settings.',
+              [
+                {
+                  text: 'Open Settings',
+                  onPress: () => Linking.openSettings()
+                },
+                {
+                  text: 'Cancel',
+                  style: 'cancel'
+                }
+              ]
+            );
+          }
+          
           webViewRef.current?.postMessage(JSON.stringify({
             type: 'contact-picker-result',
             success: false,
             error: err.message || 'Failed to pick contact',
-            message: 'Could not access contacts. Please try adding manually.'
+            message: 'Could not access contacts. Please check app permissions.'
+          }));
+          return;
+        }
+
+        if (!contact) {
+          console.log('[Native] ℹ️ No contact selected');
+          webViewRef.current?.postMessage(JSON.stringify({
+            type: 'contact-picker-result',
+            success: false,
+            error: 'No contact selected',
+            message: 'No contact was selected.'
           }));
           return;
         }
@@ -116,6 +196,13 @@ export default function WebViewScreen() {
       });
     } catch (error) {
       console.error('[Native] ❌ Contact picker failed:', error);
+      
+      Alert.alert(
+        'Error',
+        'Failed to open contact picker. Please try again or add the contact manually.',
+        [{ text: 'OK' }]
+      );
+      
       webViewRef.current?.postMessage(JSON.stringify({
         type: 'contact-picker-result',
         success: false,
@@ -382,11 +469,6 @@ export default function WebViewScreen() {
     }
   };
 
-  // Handle messages FROM native TO WebView (postMessage)
-  useEffect(() => {
-    // This is handled by the webViewRef.current?.postMessage() calls above
-  }, []);
-
   const onError = (syntheticEvent) => {
     const { nativeEvent } = syntheticEvent;
     console.error('[Native] ❌ WebView Error:', nativeEvent);
@@ -432,7 +514,6 @@ export default function WebViewScreen() {
         scalesPageToFit={true}
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
-        // Enable text input
         keyboardDisplayRequiresUserAction={false}
         
         // Media
@@ -459,12 +540,6 @@ export default function WebViewScreen() {
         
         style={styles.webview}
       />
-
-      {/* {loading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#007AFF" />
-        </View>
-      )} */}
     </SafeAreaView>
   );
 }
@@ -476,15 +551,5 @@ const styles = StyleSheet.create({
   },
   webview: {
     flex: 1,
-  },
-  loadingContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0, 
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
 });
