@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.prakratigtn.czone",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSContactsUsageDescription": "This app needs access to your contacts to add customers."
       }
     },
     "android": {
@@ -22,7 +23,11 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.prakratigtn.czone"
+      "package": "com.prakratigtn.czone",
+      "permissions": [
+        "READ_CONTACTS",
+        "WRITE_CONTACTS"
+      ]
     },
     "web": {
       "output": "static",
@@ -39,6 +44,12 @@
           "dark": {
             "backgroundColor": "#000000"
           }
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow CZONE to access your contacts to add customers."
         }
       ]
     ],
@@ -59,4 +70,4 @@
       "url": "https://u.expo.dev/2bf060e8-868f-4a3b-9144-83ea3bbb1248"
     }
   }
-}
+}         

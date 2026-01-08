@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Contacts from 'react-native-contacts';
+import * as Contacts from 'expo-contacts';
 
 const APP_URL = 'https://czone-credit.web.app';
 
@@ -40,177 +40,278 @@ export default function WebViewScreen() {
   }, [canGoBack]);
 
   // Request contacts permission (Android) - IMPROVED VERSION
-  const requestContactsPermission = async () => {
-    if (Platform.OS !== 'android') {
-      return true; // iOS handles permissions differently
-    }
+  // const requestContactsPermission = async () => {
+  //   if (Platform.OS !== 'android') {
+  //     return true; // iOS handles permissions differently
+  //   }
 
-    try {
-      // Check if permission is already granted
-      const checkResult = await PermissionsAndroid.check(
-        PermissionsAndroid.PERMISSIONS.READ_CONTACTS
-      );
+  //   try {
+  //     // Check if permission is already granted
+  //     const checkResult = await PermissionsAndroid.check(
+  //       PermissionsAndroid.PERMISSIONS.READ_CONTACTS
+  //     );
 
-      if (checkResult) {
-        console.log('[Native] ✅ Contacts permission already granted');
-        return true;
-      }
+  //     if (checkResult) {
+  //       console.log('[Native] ✅ Contacts permission already granted');
+  //       return true;
+  //     }
 
-      // Request permission
-      console.log('[Native] 📱 Requesting contacts permission...');
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
-        {
-          title: 'Contacts Permission',
-          message: 'This app needs access to your contacts to add customers.',
-          buttonPositive: 'Allow',
-          buttonNegative: 'Deny',
-        }
-      );
+  //     // Request permission
+  //     console.log('[Native] 📱 Requesting contacts permission...');
+  //     const granted = await PermissionsAndroid.request(
+  //       PermissionsAndroid.PERMISSIONS.READ_CONTACTS,
+  //       {
+  //         title: 'Contacts Permission',
+  //         message: 'This app needs access to your contacts to add customers.',
+  //         buttonPositive: 'Allow',
+  //         buttonNegative: 'Deny',
+  //       }
+  //     );
 
-      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        console.log('[Native] ✅ Contacts permission granted');
-        return true;
-      } else if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
-        console.log('[Native] ⚠️ Permission permanently denied');
+  //     if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+  //       console.log('[Native] ✅ Contacts permission granted');
+  //       return true;
+  //     } else if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+  //       console.log('[Native] ⚠️ Permission permanently denied');
         
-        // Show alert to open settings
-        Alert.alert(
-          'Permission Required',
-          'Contacts permission is required to select contacts. Please enable it in app settings.',
-          [
-            {
-              text: 'Open Settings',
-              onPress: () => {
-                Linking.openSettings();
-              }
-            },
-            {
-              text: 'Cancel',
-              style: 'cancel'
-            }
-          ]
-        );
-        return false;
-      } else {
-        console.log('[Native] ❌ Contacts permission denied');
-        return false;
-      }
-    } catch (err) {
-      console.error('[Native] Permission error:', err);
+  //       // Show alert to open settings
+  //       Alert.alert(
+  //         'Permission Required',
+  //         'Contacts permission is required to select contacts. Please enable it in app settings.',
+  //         [
+  //           {
+  //             text: 'Open Settings',
+  //             onPress: () => {
+  //               Linking.openSettings();
+  //             }
+  //           },
+  //           {
+  //             text: 'Cancel',
+  //             style: 'cancel'
+  //           }
+  //         ]
+  //       );
+  //       return false;
+  //     } else {
+  //       console.log('[Native] ❌ Contacts permission denied');
+  //       return false;
+  //     }
+  //   } catch (err) {
+  //     console.error('[Native] Permission error:', err);
+  //     Alert.alert(
+  //       'Error',
+  //       'Failed to request contacts permission. Please try again.'
+  //     );
+  //     return false;
+  //   }
+  // };
+
+  // Request contacts permission (Expo version)
+const requestContactsPermission = async () => {
+  try {
+    const { status } = await Contacts.requestPermissionsAsync();
+    
+    if (status === 'granted') {
+      console.log('[Native] ✅ Contacts permission granted');
+      return true;
+    } else {
+      console.log('[Native] ❌ Contacts permission denied');
       Alert.alert(
-        'Error',
-        'Failed to request contacts permission. Please try again.'
+        'Permission Required',
+        'Contacts permission is required. Please enable it in app settings.',
+        [
+          {
+            text: 'Open Settings',
+            onPress: () => Linking.openSettings()
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          }
+        ]
       );
       return false;
     }
-  };
+  } catch (err) {
+    console.error('[Native] Permission error:', err);
+    return false;
+  }
+};
 
   // Open contact picker - IMPROVED VERSION
-  const openContactPicker = async () => {
-    try {
-      console.log('[Native] 📞 Opening contact picker...');
+  // const openContactPicker = async () => {
+  //   try {
+  //     console.log('[Native] 📞 Opening contact picker...');
       
-      // Request permission first
-      const hasPermission = await requestContactsPermission();
+  //     // Request permission first
+  //     const hasPermission = await requestContactsPermission();
       
-      if (!hasPermission) {
-        console.log('[Native] ❌ No permission, sending error to web');
-        webViewRef.current?.postMessage(JSON.stringify({
-          type: 'contact-picker-result',
-          success: false,
-          error: 'Permission denied',
-          message: 'Please grant contacts permission in app settings to use this feature.'
-        }));
-        return;
-      }
+  //     if (!hasPermission) {
+  //       console.log('[Native] ❌ No permission, sending error to web');
+  //       webViewRef.current?.postMessage(JSON.stringify({
+  //         type: 'contact-picker-result',
+  //         success: false,
+  //         error: 'Permission denied',
+  //         message: 'Please grant contacts permission in app settings to use this feature.'
+  //       }));
+  //       return;
+  //     }
 
-      console.log('[Native] ✅ Permission granted, opening picker...');
+  //     console.log('[Native] ✅ Permission granted, opening picker...');
 
-      // Open contact picker
-      Contacts.openContactPicker((err, contact) => {
-        if (err) {
-          console.error('[Native] ❌ Contact picker error:', err);
+  //     // Open contact picker
+  //     Contacts.openContactPicker((err, contact) => {
+  //       if (err) {
+  //         console.error('[Native] ❌ Contact picker error:', err);
           
-          // Check if it's a permission error
-          if (err.message && err.message.includes('permission')) {
-            Alert.alert(
-              'Permission Required',
-              'Please enable contacts permission in your phone settings.',
-              [
-                {
-                  text: 'Open Settings',
-                  onPress: () => Linking.openSettings()
-                },
-                {
-                  text: 'Cancel',
-                  style: 'cancel'
-                }
-              ]
-            );
-          }
+  //         // Check if it's a permission error
+  //         if (err.message && err.message.includes('permission')) {
+  //           Alert.alert(
+  //             'Permission Required',
+  //             'Please enable contacts permission in your phone settings.',
+  //             [
+  //               {
+  //                 text: 'Open Settings',
+  //                 onPress: () => Linking.openSettings()
+  //               },
+  //               {
+  //                 text: 'Cancel',
+  //                 style: 'cancel'
+  //               }
+  //             ]
+  //           );
+  //         }
           
-          webViewRef.current?.postMessage(JSON.stringify({
-            type: 'contact-picker-result',
-            success: false,
-            error: err.message || 'Failed to pick contact',
-            message: 'Could not access contacts. Please check app permissions.'
-          }));
-          return;
-        }
+  //         webViewRef.current?.postMessage(JSON.stringify({
+  //           type: 'contact-picker-result',
+  //           success: false,
+  //           error: err.message || 'Failed to pick contact',
+  //           message: 'Could not access contacts. Please check app permissions.'
+  //         }));
+  //         return;
+  //       }
 
-        if (!contact) {
-          console.log('[Native] ℹ️ No contact selected');
-          webViewRef.current?.postMessage(JSON.stringify({
-            type: 'contact-picker-result',
-            success: false,
-            error: 'No contact selected',
-            message: 'No contact was selected.'
-          }));
-          return;
-        }
+  //       if (!contact) {
+  //         console.log('[Native] ℹ️ No contact selected');
+  //         webViewRef.current?.postMessage(JSON.stringify({
+  //           type: 'contact-picker-result',
+  //           success: false,
+  //           error: 'No contact selected',
+  //           message: 'No contact was selected.'
+  //         }));
+  //         return;
+  //       }
 
-        // Extract contact information
-        const firstName = contact.givenName || '';
-        const lastName = contact.familyName || '';
-        const fullName = `${firstName} ${lastName}`.trim() || contact.displayName || 'Unknown';
+  //       // Extract contact information
+  //       const firstName = contact.givenName || '';
+  //       const lastName = contact.familyName || '';
+  //       const fullName = `${firstName} ${lastName}`.trim() || contact.displayName || 'Unknown';
         
-        // Get phone number
-        const phoneNumber = contact.phoneNumbers && contact.phoneNumbers.length > 0
-          ? contact.phoneNumbers[0].number.replace(/[^0-9+]/g, '')
-          : '';
+  //       // Get phone number
+  //       const phoneNumber = contact.phoneNumbers && contact.phoneNumbers.length > 0
+  //         ? contact.phoneNumbers[0].number.replace(/[^0-9+]/g, '')
+  //         : '';
 
-        console.log('[Native] ✅ Contact selected:', fullName, phoneNumber);
+  //       console.log('[Native] ✅ Contact selected:', fullName, phoneNumber);
 
-        // Send contact data back to WebView
-        webViewRef.current?.postMessage(JSON.stringify({
-          type: 'contact-picker-result',
-          success: true,
-          contact: {
-            name: fullName,
-            firstName: firstName,
-            lastName: lastName,
-            phone: phoneNumber
-          }
-        }));
-      });
-    } catch (error) {
-      console.error('[Native] ❌ Contact picker failed:', error);
+  //       // Send contact data back to WebView
+  //       webViewRef.current?.postMessage(JSON.stringify({
+  //         type: 'contact-picker-result',
+  //         success: true,
+  //         contact: {
+  //           name: fullName,
+  //           firstName: firstName,
+  //           lastName: lastName,
+  //           phone: phoneNumber
+  //         }
+  //       }));
+  //     });
+  //   } catch (error) {
+  //     console.error('[Native] ❌ Contact picker failed:', error);
       
-      Alert.alert(
-        'Error',
-        'Failed to open contact picker. Please try again or add the contact manually.',
-        [{ text: 'OK' }]
-      );
+  //     Alert.alert(
+  //       'Error',
+  //       'Failed to open contact picker. Please try again or add the contact manually.',
+  //       [{ text: 'OK' }]
+  //     );
       
+  //     webViewRef.current?.postMessage(JSON.stringify({
+  //       type: 'contact-picker-result',
+  //       success: false,
+  //       error: error.message,
+  //       message: 'Could not access contacts. Please try adding manually.'
+  //     }));
+  //   }
+  // };
+
+  // Open contact picker (Expo version)
+const openContactPicker = async () => {
+  try {
+    console.log('[Native] 📞 Opening contact picker...');
+    
+    // Request permission first
+    const hasPermission = await requestContactsPermission();
+    
+    if (!hasPermission) {
       webViewRef.current?.postMessage(JSON.stringify({
         type: 'contact-picker-result',
         success: false,
-        error: error.message,
-        message: 'Could not access contacts. Please try adding manually.'
+        error: 'Permission denied',
+        message: 'Please grant contacts permission in app settings.'
       }));
+      return;
     }
-  };
+
+    // Get contacts using Expo API
+    const { data } = await Contacts.getContactsAsync({
+      fields: [Contacts.Fields.Name, Contacts.Fields.PhoneNumbers],
+      pageSize: 1,
+    });
+
+    if (!data || data.length === 0) {
+      webViewRef.current?.postMessage(JSON.stringify({
+        type: 'contact-picker-result',
+        success: false,
+        error: 'No contact selected',
+        message: 'No contact was selected.'
+      }));
+      return;
+    }
+
+    const contact = data[0];
+    const firstName = contact.firstName || '';
+    const lastName = contact.lastName || '';
+    const fullName = contact.name || `${firstName} ${lastName}`.trim() || 'Unknown';
+    
+    // Get phone number
+    const phoneNumber = contact.phoneNumbers && contact.phoneNumbers.length > 0
+      ? contact.phoneNumbers[0].number.replace(/[^0-9+]/g, '')
+      : '';
+
+    console.log('[Native] ✅ Contact selected:', fullName, phoneNumber);
+
+    // Send contact data back to WebView
+    webViewRef.current?.postMessage(JSON.stringify({
+      type: 'contact-picker-result',
+      success: true,
+      contact: {
+        name: fullName,
+        firstName: firstName,
+        lastName: lastName,
+        phone: phoneNumber
+      }
+    }));
+  } catch (error) {
+    console.error('[Native] ❌ Contact picker failed:', error);
+    
+    webViewRef.current?.postMessage(JSON.stringify({
+      type: 'contact-picker-result',
+      success: false,
+      error: error.message,
+      message: 'Could not access contacts. Please try adding manually.'
+    }));
+  }
+};
 
   // FIXED: Run only once per page load
   const injectedJavaScript = `
