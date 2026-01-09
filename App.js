@@ -1,4 +1,3 @@
-// App.js - Root level, bypasses Expo Router
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -12,7 +11,7 @@ import {
 import { WebView } from 'react-native-webview';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-const APP_URL = 'https://czone-credit.web.app';
+const APP_URL = 'https://example-credit.web.app';
 
 function WebViewScreen() {
   const webViewRef = useRef(null);
